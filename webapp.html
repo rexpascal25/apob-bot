@@ -1,1 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>APOB Bot</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
 
+  :root {
+    --red:    #e63946;
+    --green:  #2dc653;
+    --blue:   #0077b6;
+    --dark:   #0d1117;
+    --card:   #161b22;
+    --border: #30363d;
+    --text:   #e6edf3;
+    --muted:  #8b949e;
+  }
+
+  body {
+    background: var(--dark);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 20px;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #e63946 0%, #0077b6 100%);
+    padding: 20px 16px 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+  .header p {
+    font-size: 11px;
+    color: rgba(255,255,255,0.8);
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  /* ── Status Bar ── */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    margin: 12px;
+    border-radius: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+  }
+  .status-item {
+    text-align: center;
+  }
+  .status-item .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .status-item .value {
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .dot-green { color: var(--green); }
+  .dot-red   { color: var(--red); }
+  .dot-blue  { color: var(--blue); }
+
+  /* ── Balance Card ── */
+  .balance-card {
+    background: linear-gradient(135deg, #0077b6 0%, #023e8a 100%);
+    margin: 0 12px 12px;
+    border-radius: 16px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .balance-card::before {
+    content: '💰';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 48px;
+    opacity: 0.15;
+  }
+  .balance-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .balance-amount {
+    font-size: 32px;
+    font-weight: 800;
+    color: white;
+    margin: 4px 0;
+  }
+  .balance-mode {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: white;
+    font-weight: 600;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin: 0 12px 12px;
+  }
+  .section-title {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+  }
+  .btn:active { transform: scale(0.97); opacity: 0.9; }
+
+  .btn-green {
+    background: linear-gradient(135deg, #2dc653, #1a7a32);
+    color: white;
+    box-shadow: 0 4px 15px rgba(45,198,83,0.3);
+  }
+  .btn-red {
+    background: linear-gradient(135deg, #e63946, #9b1c24);
+    color: white;
+    box-shadow: 0 4px 15px rgba(230,57,70,0.3);
+  }
+  .btn-blue {
+    background: linear-gradient(135deg, #0077b6, #023e8a);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,119,182,0.3);
+  }
+  .btn-dark {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Grid Buttons ── */
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .btn-grid .btn { margin-bottom: 0; }
+
+  /* ── Stats Card ── */
+  .stats-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .stat-item {
+    text-align: center;
+    background: var(--dark);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .stat-value {
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .stat-green { color: var(--green); }
+  .stat-red   { color: var(--red); }
+  .stat-blue  { color: var(--blue); }
+
+  /* ── Progress Bar ── */
+  .progress-wrap {
+    margin-top: 10px;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--red));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  /* ── Settings Panel ── */
+  .settings-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .settings-item:active { opacity: 0.8; }
+  .settings-left { display: flex; align-items: center; gap: 10px; }
+  .settings-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .icon-green { background: rgba(45,198,83,0.15); }
+  .icon-red   { background: rgba(230,57,70,0.15); }
+  .icon-blue  { background: rgba(0,119,182,0.15); }
+  .settings-title { font-size: 14px; font-weight: 600; }
+  .settings-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .settings-arrow { color: var(--muted); font-size: 18px; }
+
+  /* ── Toggle Switch ── */
+  .toggle {
+    width: 44px; height: 24px;
+    background: var(--border);
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .toggle.on { background: var(--green); }
+  .toggle::after {
+    content: '';
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px; left: 3px;
+    transition: left 0.3s;
+  }
+  .toggle.on::after { left: 23px; }
+
+  /* ── Amount Selector ── */
+  .amount-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .amount-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .amount-btn.selected {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+  }
+  .amount-btn:active { transform: scale(0.95); }
+
+  /* ── Expiry Selector ── */
+  .expiry-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .expiry-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 4px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .expiry-btn.selected {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+  }
+
+  /* ── Pages ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Nav Bar ── */
+  .navbar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 0 12px;
+    z-index: 100;
+  }
+  .nav-item {
+    flex: 1;
+    text-align: center;
+    cursor: pointer;
+    padding: 4px;
+    transition: all 0.15s;
+  }
+  .nav-icon { font-size: 22px; }
+  .nav-label {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 4px var(--blue)); }
+  .nav-item.active .nav-label { color: var(--blue); font-weight: 700; }
+
+  .content { padding-bottom: 70px; }
+
+  /* ── Asset Grid ── */
+  .asset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .asset-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .asset-btn:active { transform: scale(0.97); border-color: var(--blue); }
+  .asset-name { font-size: 13px; font-weight: 700; }
+  .asset-sub  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Trade Panel ── */
+  .trade-panel {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .trade-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .trade-row:last-child { border-bottom: none; }
+  .trade-key   { font-size: 12px; color: var(--muted); }
+  .trade-value { font-size: 13px; font-weight: 700; }
+
+  /* ── Input ── */
+  .input-wrap { margin-bottom: 10px; }
+  .input-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .input-field {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .input-field:focus { border-color: var(--blue); }
+
+  /* ── Alert ── */
+  .alert {
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .alert-green { background: rgba(45,198,83,0.15); border: 1px solid rgba(45,198,83,0.3); color: var(--green); }
+  .alert-red   { background: rgba(230,57,70,0.15);  border: 1px solid rgba(230,57,70,0.3);  color: var(--red); }
+  .alert-blue  { background: rgba(0,119,182,0.15);  border: 1px solid rgba(0,119,182,0.3);  color: #48cae4; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <h1>🔴 APOB BOT 🔵</h1>
+  <p>AUTOMATED PROFIT ON BINARY</p>
+</div>
+
+<!-- ── CONTENT ── -->
+<div class="content">
+
+  <!-- ══ HOME PAGE ══ -->
+  <div class="page active" id="page-home">
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="label">Status</div>
+        <div class="value dot-red" id="conn-status">● Offline</div>
+      </div>
+      <div class="status-item">
+        <div class="label">Mode</div>
+        <div class="value dot-blue" id="trade-mode">🔵 DEMO</div>
+      </div>
+      <div class="status-item">
+        <div class="label">Engine</div>
+        <div class="value dot-green" id="engine-mode">🤖 Auto</div>
+      </div>
+    </div>
+
+    <!-- Balance Card -->
+    <div class="balance-card">
+      <div class="balance-label">AVAILABLE BALANCE</div>
+      <div class="balance-amount" id="balance-display">$0.00</div>
+      <span class="balance-mode" id="balance-mode-tag">🔵 DEMO MODE</span>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="section">
+      <button class="btn btn-green" onclick="startAutotrade()">
+        🚀 START AUTOTRADE
+      </button>
+      <div class="btn-grid">
+        <button class="btn btn-red" onclick="stopAutotrade()">
+          🛑 STOP TRADE
+        </button>
+        <button class="btn btn-blue" onclick="showPage('page-manual')">
+          👤 MANUAL TRADE
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="section">
+      <div class="section-title">Today's Performance</div>
+      <div class="stats-card">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value stat-blue" id="stat-total">0</div>
+            <div class="stat-label">Total</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value stat-green" id="stat-wins">0</div>
+            <div class="stat-label">Wins ✅</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value stat-red" id="stat-losses">0</div>
+            <div class="stat-label">Losses ❌</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span>Win Rate</span>
+            <span id="win-rate">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="win-bar" style="width:0%"></div>
+          </div>
+        </div>
+        <div style="margin-top:10px; display:flex; justify-content:space-between;">
+          <span style="font-size:12px; color:var(--muted)">P/L Today</span>
+          <span style="font-size:13px; font-weight:700;" id="pl-display">$0.00</span>
+        </div>
+        <div style="margin-top:6px; display:flex; justify-content:space-between;">
+          <span style="font-size:12px; color:var(--muted)">Daily Loss Limit</span>
+          <span style="font-size:13px; font-weight:700; color:var(--red);" id="limit-display">$0.00 / $20.00</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ MANUAL TRADE PAGE ══ -->
+  <div class="page" id="page-manual">
+    <div class="section" style="margin-top:12px;">
+      <div class="section-title">Select Asset</div>
+      <div class="asset-grid" id="asset-grid">
+        <div class="asset-btn" onclick="selectAsset('EURUSD_otc')">
+          <div class="asset-name">EUR/USD</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('GBPUSD_otc')">
+          <div class="asset-name">GBP/USD</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('USDJPY_otc')">
+          <div class="asset-name">USD/JPY</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('AUDUSD_otc')">
+          <div class="asset-name">AUD/USD</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('NGNUSD_otc')">
+          <div class="asset-name">NGN/USD</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('EURGBP_otc')">
+          <div class="asset-name">EUR/GBP</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('GBPJPY_otc')">
+          <div class="asset-name">GBP/JPY</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+        <div class="asset-btn" onclick="selectAsset('USDCAD_otc')">
+          <div class="asset-name">USD/CAD</div>
+          <div class="asset-sub">OTC</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Panel (hidden until asset selected) -->
+    <div id="trade-controls" style="display:none;">
+      <div class="section">
+        <div class="trade-panel">
+          <div class="trade-row">
+            <span class="trade-key">Asset</span>
+            <span class="trade-value" id="selected-asset">-</span>
+          </div>
+          <div class="trade-row">
+            <span class="trade-key">Amount</span>
+            <span class="trade-value" id="trade-amount-display">$1.00</span>
+          </div>
+          <div class="trade-row">
+            <span class="trade-key">Expiry</span>
+            <span class="trade-value" id="trade-expiry-display">1 min</span>
+          </div>
+        </div>
+        <div class="section-title">Expiry Time</div>
+        <div class="expiry-grid" style="margin-bottom:12px;">
+          <div class="expiry-btn selected" onclick="selectExpiry(1,this)">1m</div>
+          <div class="expiry-btn" onclick="selectExpiry(2,this)">2m</div>
+          <div class="expiry-btn" onclick="selectExpiry(3,this)">3m</div>
+          <div class="expiry-btn" onclick="selectExpiry(4,this)">4m</div>
+          <div class="expiry-btn" onclick="selectExpiry(5,this)">5m</div>
+        </div>
+        <button class="btn btn-green" style="font-size:18px; padding:16px;" onclick="placeTrade('call')">
+          🟢 ▲ BUY / CALL ▲ 🟢
+        </button>
+        <button class="btn btn-red" style="font-size:18px; padding:16px; margin-top:4px;" onclick="placeTrade('put')">
+          🔴 ▼ SELL / PUT ▼ 🔴
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SETTINGS PAGE ══ -->
+  <div class="page" id="page-settings">
+    <div class="section" style="margin-top:12px;">
+
+      <!-- Mode Toggle -->
+      <div class="settings-item" onclick="toggleDemoReal()">
+        <div class="settings-left">
+          <div class="settings-icon icon-blue">🎮</div>
+          <div>
+            <div class="settings-title">Demo / Real Mode</div>
+            <div class="settings-sub" id="mode-sub">Currently: 🔵 DEMO</div>
+          </div>
+        </div>
+        <div class="toggle" id="mode-toggle"></div>
+      </div>
+
+      <!-- Base Amount -->
+      <div class="section-title" style="margin-top:12px;">Base Trade Amount</div>
+      <div class="amount-grid" style="margin-bottom:12px;">
+        <div class="amount-btn selected" onclick="setAmount(1,this)">$1</div>
+        <div class="amount-btn" onclick="setAmount(2,this)">$2</div>
+        <div class="amount-btn" onclick="setAmount(5,this)">$5</div>
+        <div class="amount-btn" onclick="setAmount(10,this)">$10</div>
+        <div class="amount-btn" onclick="setAmount(20,this)">$20</div>
+        <div class="amount-btn" onclick="customAmount()">✏️ Custom</div>
+      </div>
+
+      <!-- Martingale -->
+      <div class="settings-item">
+        <div class="settings-left">
+          <div class="settings-icon icon-green">📈</div>
+          <div>
+            <div class="settings-title">Martingale Levels</div>
+            <div class="settings-sub" id="mg-sub">2 levels × 2.0</div>
+          </div>
+        </div>
+        <div class="settings-arrow">›</div>
+      </div>
+      <div class="amount-grid" style="margin-bottom:12px;">
+        <div class="amount-btn" onclick="setMG(1,this)">1 Level</div>
+        <div class="amount-btn selected" onclick="setMG(2,this)">2 Levels</div>
+        <div class="amount-btn" onclick="setMG(3,this)">3 Levels</div>
+        <div class="amount-btn" onclick="setMG(4,this)">4 Levels</div>
+        <div class="amount-btn selected" onclick="setMulti(2,this)">× 2</div>
+        <div class="amount-btn" onclick="setMulti(3,this)">× 3</div>
+      </div>
+
+      <!-- Expiry -->
+      <div class="section-title">Default Expiry Time</div>
+      <div class="expiry-grid" style="margin-bottom:12px;">
+        <div class="expiry-btn selected" onclick="setDefaultExpiry(1,this)">1m</div>
+        <div class="expiry-btn" onclick="setDefaultExpiry(2,this)">2m</div>
+        <div class="expiry-btn" onclick="setDefaultExpiry(3,this)">3m</div>
+        <div class="expiry-btn" onclick="setDefaultExpiry(4,this)">4m</div>
+        <div class="expiry-btn" onclick="setDefaultExpiry(5,this)">5m</div>
+      </div>
+
+      <!-- Daily Loss Limit -->
+      <div class="section-title">Daily Loss Limit</div>
+      <div class="amount-grid" style="margin-bottom:12px;">
+        <div class="amount-btn" onclick="setLimit(10,this)">$10</div>
+        <div class="amount-btn selected" onclick="setLimit(20,this)">$20</div>
+        <div class="amount-btn" onclick="setLimit(50,this)">$50</div>
+        <div class="amount-btn" onclick="setLimit(100,this)">$100</div>
+        <div class="amount-btn" onclick="setLimit(200,this)">$200</div>
+        <div class="amount-btn" onclick="customLimit()">✏️ Custom</div>
+      </div>
+
+      <button class="btn btn-green" onclick="saveSettings()">
+        💾 Save Settings
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ══ LOGIN PAGE ══ -->
+  <div class="page" id="page-login">
+    <div class="section" style="margin-top:12px;">
+
+      <div id="login-status-msg"></div>
+
+      <div class="input-wrap">
+        <div class="input-label">Pocket Option Email</div>
+        <input class="input-field" type="email" id="email-input" placeholder="yourname@gmail.com">
+      </div>
+      <div class="input-wrap">
+        <div class="input-label">Password</div>
+        <input class="input-field" type="password" id="password-input" placeholder="Your password">
+      </div>
+      <button class="btn btn-green" onclick="loginEmail()" style="margin-bottom:8px;">
+        🔑 Login with Email & Password
+      </button>
+
+      <div style="text-align:center; color:var(--muted); font-size:13px; margin:10px 0;">— OR —</div>
+
+      <div class="input-wrap">
+        <div class="input-label">Pocket Option SSID</div>
+        <input class="input-field" type="text" id="ssid-input" placeholder="Paste your SSID here">
+      </div>
+      <button class="btn btn-blue" onclick="loginSSID()">
+        🔵 Login with SSID
+      </button>
+
+      <div style="margin-top:16px; background:var(--card); border-radius:12px; padding:12px; border:1px solid var(--border);">
+        <div style="font-size:12px; color:var(--muted); line-height:1.6;">
+          <b style="color:var(--text);">How to get SSID:</b><br>
+          1. Open pocketoption.com on PC<br>
+          2. Login → Press F12<br>
+          3. Application → Cookies<br>
+          4. Copy the 'ssid' value
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ STATS PAGE ══ -->
+  <div class="page" id="page-stats">
+    <div class="section" style="margin-top:12px;">
+      <div class="stats-card">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value stat-blue" id="s-total">0</div>
+            <div class="stat-label">Total</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value stat-green" id="s-wins">0</div>
+            <div class="stat-label">Wins</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value stat-red" id="s-losses">0</div>
+            <div class="stat-label">Losses</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span>Win Rate</span>
+            <span id="s-wr">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="s-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="trade-panel">
+          <div class="trade-row">
+            <span class="trade-key">Total P/L</span>
+            <span class="trade-value" id="s-pl">$0.00</span>
+          </div>
+          <div class="trade-row">
+            <span class="trade-key">Daily Loss</span>
+            <span class="trade-value stat-red" id="s-daily">$0.00</span>
+          </div>
+          <div class="trade-row">
+            <span class="trade-key">Daily Limit</span>
+            <span class="trade-value" id="s-limit">$20.00</span>
+          </div>
+          <div class="trade-row">
+            <span class="trade-key">Best Trade</span>
+            <span class="trade-value stat-green" id="s-best">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-red" onclick="resetStats()">
+        🗑️ Reset Stats
+      </button>
+    </div>
+  </div>
+
+</div><!-- end content -->
+
+<!-- ── NAVBAR ── -->
+<div class="navbar">
+  <div class="nav-item active" onclick="showPage('page-home',this)">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-label">Home</div>
+  </div>
+  <div class="nav-item" onclick="showPage('page-manual',this)">
+    <div class="nav-icon">👤</div>
+    <div class="nav-label">Trade</div>
+  </div>
+  <div class="nav-item" onclick="showPage('page-settings',this)">
+    <div class="nav-icon">⚙️</div>
+    <div class="nav-label">Settings</div>
+  </div>
+  <div class="nav-item" onclick="showPage('page-login',this)">
+    <div class="nav-icon">🔑</div>
+    <div class="nav-label">Login</div>
+  </div>
+  <div class="nav-item" onclick="showPage('page-stats',this)">
+    <div class="nav-icon">📊</div>
+    <div class="nav-label">Stats</div>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// ── State ──────────────────────────────────────────────────────
+let state = {
+  connected: false,
+  isDemo: true,
+  autoTrading: false,
+  balance: 0,
+  amount: 1,
+  mgLevels: 2,
+  mgMulti: 2,
+  expiry: 1,
+  dailyLimit: 20,
+  dailyLoss: 0,
+  selectedAsset: null,
+  selectedExpiry: 1,
+  stats: { total:0, wins:0, losses:0, profit:0, dailyLoss:0, best:0 }
+};
+
+// ── Navigation ─────────────────────────────────────────────────
+function showPage(id, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  else {
+    const map = {
+      'page-home':'0','page-manual':'1',
+      'page-settings':'2','page-login':'3','page-stats':'4'
+    };
+    const items = document.querySelectorAll('.nav-item');
+    if (map[id]) items[map[id]].classList.add('active');
+  }
+  updateUI();
+}
+
+// ── UI Update ──────────────────────────────────────────────────
+function updateUI() {
+  // Status
+  document.getElementById('conn-status').textContent = state.connected ? '● Online' : '● Offline';
+  document.getElementById('conn-status').className = 'value ' + (state.connected ? 'dot-green' : 'dot-red');
+  document.getElementById('trade-mode').textContent = state.isDemo ? '🔵 DEMO' : '🔴 REAL';
+  document.getElementById('engine-mode').textContent = state.autoTrading ? '🟢 Running' : '🤖 Auto';
+  document.getElementById('balance-display').textContent = '$' + state.balance.toFixed(2);
+  document.getElementById('balance-mode-tag').textContent = state.isDemo ? '🔵 DEMO MODE' : '🔴 REAL MODE';
+
+  // Stats
+  const s = state.stats;
+  const wr = s.total > 0 ? (s.wins/s.total*100).toFixed(1) : 0;
+  document.getElementById('stat-total').textContent = s.total;
+  document.getElementById('stat-wins').textContent = s.wins;
+  document.getElementById('stat-losses').textContent = s.losses;
+  document.getElementById('win-rate').textContent = wr + '%';
+  document.getElementById('win-bar').style.width = wr + '%';
+  const pl = s.profit;
+  document.getElementById('pl-display').textContent = (pl>=0?'+':'') + '$' + pl.toFixed(2);
+  document.getElementById('pl-display').style.color = pl>=0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('limit-display').textContent = '$' + s.dailyLoss.toFixed(2) + ' / $' + state.dailyLimit.toFixed(2);
+
+  // Stats page
+  document.getElementById('s-total').textContent = s.total;
+  document.getElementById('s-wins').textContent = s.wins;
+  document.getElementById('s-losses').textContent = s.losses;
+  document.getElementById('s-wr').textContent = wr + '%';
+  document.getElementById('s-bar').style.width = wr + '%';
+  document.getElementById('s-pl').textContent = (pl>=0?'+':'') + '$' + pl.toFixed(2);
+  document.getElementById('s-daily').textContent = '$' + s.dailyLoss.toFixed(2);
+  document.getElementById('s-limit').textContent = '$' + state.dailyLimit.toFixed(2);
+  document.getElementById('s-best').textContent = '$' + s.best.toFixed(2);
+
+  // Settings
+  document.getElementById('mode-sub').textContent = 'Currently: ' + (state.isDemo ? '🔵 DEMO' : '🔴 REAL');
+  document.getElementById('mg-sub').textContent = state.mgLevels + ' levels × ' + state.mgMulti + '.0';
+  const toggle = document.getElementById('mode-toggle');
+  if (!state.isDemo) toggle.classList.add('on');
+  else toggle.classList.remove('on');
+}
+
+// ── Autotrade ──────────────────────────────────────────────────
+function startAutotrade() {
+  if (!state.connected) {
+    tg.showAlert('❌ Not connected!\n\nPlease login first using the Login tab.');
+    return;
+  }
+  state.autoTrading = true;
+  tg.showAlert('🚀 Auto Trade STARTED!\n\nBot is now watching for signals.\nYou will be notified of every trade!');
+  sendToBot('start_autotrade');
+  updateUI();
+}
+
+function stopAutotrade() {
+  state.autoTrading = false;
+  tg.showAlert('🛑 Auto Trade STOPPED!');
+  sendToBot('stop_autotrade');
+  updateUI();
+}
+
+// ── Manual Trade ───────────────────────────────────────────────
+function selectAsset(asset) {
+  state.selectedAsset = asset;
+  document.querySelectorAll('.asset-btn').forEach(b => b.style.borderColor = 'var(--border)');
+  event.currentTarget.style.borderColor = 'var(--blue)';
+  document.getElementById('selected-asset').textContent = asset.replace('_otc','').replace('USD','/USD').replace('GBP','/GBP').replace('JPY','/JPY').replace('CAD','/CAD');
+  document.getElementById('trade-amount-display').textContent = '$' + state.amount.toFixed(2);
+  document.getElementById('trade-expiry-display').textContent = state.selectedExpiry + ' min';
+  document.getElementById('trade-controls').style.display = 'block';
+  document.getElementById('trade-controls').scrollIntoView({behavior:'smooth'});
+}
+
+function selectExpiry(val, el) {
+  state.selectedExpiry = val;
+  document.querySelectorAll('.expiry-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('trade-expiry-display').textContent = val + ' min';
+}
+
+function placeTrade(direction) {
+  if (!state.selectedAsset) {
+    tg.showAlert('Please select an asset first!');
+    return;
+  }
+  if (!state.connected) {
+    tg.showAlert('❌ Not connected!\nPlease login first.');
+    return;
+  }
+  const dir = direction === 'call' ? '🟢 BUY/CALL' : '🔴 SELL/PUT';
+  tg.showConfirm(
+    `Place Trade?\n\nAsset: ${state.selectedAsset}\nDirection: ${dir}\nAmount: $${state.amount}\nExpiry: ${state.selectedExpiry}min`,
+    (confirmed) => {
+      if (confirmed) {
+        sendToBot(`trade:${state.selectedAsset}:${direction}:${state.amount}:${state.selectedExpiry}`);
+        tg.showAlert('✅ Trade placed! Check Telegram for result.');
+      }
+    }
+  );
+}
+
+// ── Settings ───────────────────────────────────────────────────
+function toggleDemoReal() {
+  state.isDemo = !state.isDemo;
+  if (!state.isDemo) {
+    tg.showAlert('⚠️ REAL Mode activated!\nReal money will be used!');
+  }
+  updateUI();
+}
+
+function setAmount(val, el) {
+  state.amount = val;
+  document.querySelectorAll('.amount-grid .amount-btn').forEach(b => {
+    if(b.textContent.startsWith('$')) b.classList.remove('selected');
+  });
+  el.classList.add('selected');
+}
+
+function customAmount() {
+  tg.showPopup({
+    title: 'Custom Amount',
+    message: 'Enter your trade amount:',
+    buttons: [
+      {id:'ok', type:'default', text:'Set Amount'},
+      {type:'cancel'}
+    ]
+  }, (id) => {});
+}
+
+function setMG(val, el) {
+  state.mgLevels = val;
+  document.querySelectorAll('.amount-grid .amount-btn').forEach(b => {
+    if(b.textContent.includes('Level')) b.classList.remove('selected');
+  });
+  el.classList.add('selected');
+  updateUI();
+}
+
+function setMulti(val, el) {
+  state.mgMulti = val;
+  document.querySelectorAll('.amount-grid .amount-btn').forEach(b => {
+    if(b.textContent.startsWith('×')) b.classList.remove('selected');
+  });
+  el.classList.add('selected');
+  updateUI();
+}
+
+function setDefaultExpiry(val, el) {
+  state.expiry = val;
+  state.selectedExpiry = val;
+  document.querySelectorAll('#page-settings .expiry-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function setLimit(val, el) {
+  state.dailyLimit = val;
+  document.querySelectorAll('.amount-grid .amount-btn').forEach(b => {
+    if(b.textContent.startsWith('$') && !b.closest('.amount-grid').previousElementSibling?.textContent.includes('Trade')) {
+      b.classList.remove('selected');
+    }
+  });
+  el.classList.add('selected');
+  updateUI();
+}
+
+function customLimit() {
+  tg.showPopup({title:'Custom Limit', message:'Enter daily loss limit:', buttons:[{id:'ok',type:'default',text:'Set'},{type:'cancel'}]});
+}
+
+function saveSettings() {
+  sendToBot(`settings:${state.isDemo}:${state.amount}:${state.mgLevels}:${state.mgMulti}:${state.expiry}:${state.dailyLimit}`);
+  tg.showAlert('✅ Settings saved!');
+}
+
+// ── Login ──────────────────────────────────────────────────────
+function loginEmail() {
+  const email    = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value.trim();
+  if (!email || !password) {
+    tg.showAlert('Please enter email and password!');
+    return;
+  }
+  sendToBot(`login_email:${email}:${password}`);
+  document.getElementById('login-status-msg').innerHTML =
+    '<div class="alert alert-blue">⏳ Logging in... Please wait.</div>';
+}
+
+function loginSSID() {
+  const ssid = document.getElementById('ssid-input').value.trim();
+  if (!ssid) {
+    tg.showAlert('Please enter your SSID!');
+    return;
+  }
+  sendToBot(`login_ssid:${ssid}`);
+  document.getElementById('login-status-msg').innerHTML =
+    '<div class="alert alert-blue">⏳ Connecting with SSID...</div>';
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+function resetStats() {
+  tg.showConfirm('Reset all stats?', (ok) => {
+    if (ok) {
+      state.stats = {total:0,wins:0,losses:0,profit:0,dailyLoss:0,best:0};
+      sendToBot('reset_stats');
+      updateUI();
+      tg.showAlert('✅ Stats reset!');
+    }
+  });
+}
+
+// ── Send to Bot ────────────────────────────────────────────────
+function sendToBot(data) {
+  tg.sendData(data);
+}
+
+// ── Init ───────────────────────────────────────────────────────
+updateUI();
+</script>
+</body>
+  </html>
