@@ -104,18 +104,22 @@ def start_keep_alive():
 def main_menu_keyboard():
     kb = InlineKeyboardMarkup(row_width=1)
     kb.add(
-        InlineKeyboardButton("🚀  Start Autotrade", callback_data="start_autotrade")
+        InlineKeyboardButton("🟢 🚀 START AUTOTRADE 🚀 🟢", callback_data="start_autotrade")
     )
     kb.add(
-        InlineKeyboardButton("💰  Balance",          callback_data="balance"),
-        InlineKeyboardButton("🔑  Login",            callback_data="login_menu")
+        InlineKeyboardButton("🔵 💰 Balance",     callback_data="balance"),
+        InlineKeyboardButton("🔵 🔑 Login",       callback_data="login_menu")
     )
     kb.add(
-        InlineKeyboardButton("📊  Trade Stats",      callback_data="stats"),
-        InlineKeyboardButton("⚙️  Settings",         callback_data="settings_menu")
+        InlineKeyboardButton("🔵 📊 Trade Stats", callback_data="stats"),
+        InlineKeyboardButton("🔴 ⚙️ Settings",   callback_data="settings_menu")
     )
     kb.add(
-        InlineKeyboardButton("📖  FAQ / Help",       callback_data="help")
+        InlineKeyboardButton("🔵 👤 Manual Trade", callback_data="manual_trade"),
+        InlineKeyboardButton("🔴 🛑 Stop Trade",   callback_data="stop_autotrade")
+    )
+    kb.add(
+        InlineKeyboardButton("🟢 📖 FAQ / Help",  callback_data="help")
     )
     return kb
 
@@ -123,11 +127,11 @@ def main_menu_keyboard():
 def account_menu_keyboard():
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("🔄  Re-Login",         callback_data="relogin"),
-        InlineKeyboardButton("🎮  Demo / Real",      callback_data="toggle_mode")
+        InlineKeyboardButton("🔄 Re-Login",        callback_data="relogin"),
+        InlineKeyboardButton("🟢 Demo / 🔴 Real",  callback_data="toggle_mode")
     )
     kb.add(
-        InlineKeyboardButton("🏠  Main Menu",        callback_data="main_menu")
+        InlineKeyboardButton("🏠 Main Menu",       callback_data="main_menu")
     )
     return kb
 
@@ -135,19 +139,19 @@ def account_menu_keyboard():
 def settings_menu_keyboard():
     kb = InlineKeyboardMarkup(row_width=1)
     kb.add(
-        InlineKeyboardButton("🎯  Autotrade Settings", callback_data="autotrade_settings")
+        InlineKeyboardButton("🟢 🎯 Autotrade Settings", callback_data="autotrade_settings")
     )
     kb.add(
-        InlineKeyboardButton("⏳  Expiration Time",    callback_data="expiry_settings")
+        InlineKeyboardButton("🔵 ⏳ Expiration Time",    callback_data="expiry_settings")
     )
     kb.add(
-        InlineKeyboardButton("🤖  Manual / Auto",      callback_data="mode_settings")
+        InlineKeyboardButton("🔵 🤖 Manual / Auto",      callback_data="mode_settings")
     )
     kb.add(
-        InlineKeyboardButton("🛑  Daily Loss Limit",   callback_data="loss_limit_settings")
+        InlineKeyboardButton("🔴 🛑 Daily Loss Limit",   callback_data="loss_limit_settings")
     )
     kb.add(
-        InlineKeyboardButton("🏠  Main Menu",          callback_data="main_menu")
+        InlineKeyboardButton("🏠 Main Menu",              callback_data="main_menu")
     )
     return kb
 
@@ -237,9 +241,13 @@ def loss_limit_keyboard(user):
 def login_menu_keyboard():
     kb = InlineKeyboardMarkup(row_width=1)
     kb.add(
-        InlineKeyboardButton("📧  Login with Email & Password", callback_data="login_email"),
-        InlineKeyboardButton("🔑  Login with SSID",             callback_data="login_ssid"),
-        InlineKeyboardButton("🏠  Main Menu",                   callback_data="main_menu"),
+        InlineKeyboardButton("🟢 📧 Login with Email & Password", callback_data="login_email")
+    )
+    kb.add(
+        InlineKeyboardButton("🔵 🔑 Login with SSID",             callback_data="login_ssid")
+    )
+    kb.add(
+        InlineKeyboardButton("🏠 Main Menu",                       callback_data="main_menu")
     )
     return kb
 
@@ -247,37 +255,40 @@ def login_menu_keyboard():
 def manual_trade_keyboard():
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("EUR/USD OTC", callback_data="tr_EURUSD_otc"),
-        InlineKeyboardButton("GBP/USD OTC", callback_data="tr_GBPUSD_otc"),
-        InlineKeyboardButton("USD/JPY OTC", callback_data="tr_USDJPY_otc"),
-        InlineKeyboardButton("AUD/USD OTC", callback_data="tr_AUDUSD_otc"),
-        InlineKeyboardButton("NGN/USD OTC", callback_data="tr_NGNUSD_otc"),
-        InlineKeyboardButton("EUR/GBP OTC", callback_data="tr_EURGBP_otc"),
-        InlineKeyboardButton("GBP/JPY OTC", callback_data="tr_GBPJPY_otc"),
-        InlineKeyboardButton("USD/CAD OTC", callback_data="tr_USDCAD_otc"),
+        InlineKeyboardButton("🔵 EUR/USD OTC", callback_data="tr_EURUSD_otc"),
+        InlineKeyboardButton("🔵 GBP/USD OTC", callback_data="tr_GBPUSD_otc"),
+        InlineKeyboardButton("🔵 USD/JPY OTC", callback_data="tr_USDJPY_otc"),
+        InlineKeyboardButton("🔵 AUD/USD OTC", callback_data="tr_AUDUSD_otc"),
+        InlineKeyboardButton("🔵 NGN/USD OTC", callback_data="tr_NGNUSD_otc"),
+        InlineKeyboardButton("🔵 EUR/GBP OTC", callback_data="tr_EURGBP_otc"),
+        InlineKeyboardButton("🔵 GBP/JPY OTC", callback_data="tr_GBPJPY_otc"),
+        InlineKeyboardButton("🔵 USD/CAD OTC", callback_data="tr_USDCAD_otc"),
     )
-    kb.add(InlineKeyboardButton("🏠  Main Menu", callback_data="main_menu"))
+    kb.add(InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"))
     return kb
 
 def direction_keyboard(asset):
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("🟢  BUY / CALL", callback_data=f"dir_{asset}_call"),
-        InlineKeyboardButton("🔴  SELL / PUT",  callback_data=f"dir_{asset}_put"),
+        InlineKeyboardButton("🟢 ▲ BUY / CALL ▲ 🟢", callback_data=f"dir_{asset}_call"),
     )
-    kb.add(InlineKeyboardButton("◀️  Back", callback_data="manual_trade"))
+    kb.add(
+        InlineKeyboardButton("🔴 ▼ SELL / PUT ▼ 🔴",  callback_data=f"dir_{asset}_put"),
+    )
+    kb.add(InlineKeyboardButton("◀️ Back", callback_data="manual_trade"))
     return kb
 
 def expiry_trade_keyboard(asset, direction):
     kb = InlineKeyboardMarkup(row_width=5)
+    color = "🟢" if direction == "call" else "🔴"
     kb.add(
-        InlineKeyboardButton("1m", callback_data=f"texp_{asset}_{direction}_1"),
-        InlineKeyboardButton("2m", callback_data=f"texp_{asset}_{direction}_2"),
-        InlineKeyboardButton("3m", callback_data=f"texp_{asset}_{direction}_3"),
-        InlineKeyboardButton("4m", callback_data=f"texp_{asset}_{direction}_4"),
-        InlineKeyboardButton("5m", callback_data=f"texp_{asset}_{direction}_5"),
+        InlineKeyboardButton(f"{color} 1m", callback_data=f"texp_{asset}_{direction}_1"),
+        InlineKeyboardButton(f"{color} 2m", callback_data=f"texp_{asset}_{direction}_2"),
+        InlineKeyboardButton(f"{color} 3m", callback_data=f"texp_{asset}_{direction}_3"),
+        InlineKeyboardButton(f"{color} 4m", callback_data=f"texp_{asset}_{direction}_4"),
+        InlineKeyboardButton(f"{color} 5m", callback_data=f"texp_{asset}_{direction}_5"),
     )
-    kb.add(InlineKeyboardButton("◀️  Back", callback_data="manual_trade"))
+    kb.add(InlineKeyboardButton("◀️ Back", callback_data="manual_trade"))
     return kb
 
 # ══════════════════════════════════════════════════════════════
