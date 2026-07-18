@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 # ── Env Variables ──────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_USER_ID   = int(os.environ.get('TELEGRAM_USER_ID', 0))
-PORT               = int(os.environ.get('PORT', 8080))
+TELEGRAM_USER_ID   = int(os.environ.get('TELEGRAM_USER_ID', 0) or 0)
+PORT               = int(os.environ.get('PORT', 8080) or 8080)
 PO_EMAIL           = os.environ.get('PO_EMAIL', '')
 PO_PASSWORD        = os.environ.get('PO_PASSWORD', '')
 CAPTCHA_KEY        = os.environ.get('CAPTCHA_KEY', '')
