@@ -338,17 +338,21 @@ def cmd_start(message):
     name = message.from_user.first_name or "Trader"
     get_user(uid)
     user_state.pop(uid, None)
+    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    kb = InlineKeyboardMarkup()
+    kb.add(InlineKeyboardButton(
+        "🔴🔵 Open APOB Bot Panel 🔴🔵",
+        web_app=WebAppInfo(url="https://rexpascal25.github.io/apob-bot/webapp.html")
+    ))
     bot.send_message(
         message.chat.id,
         f"🔴🔵 <b>APOB BOT</b> 🔴🔵\n"
         f"<i>Automated Profit On Binary</i>\n\n"
         f"👋 Welcome <b>{name}</b>!\n\n"
-        f"Your professional binary options\n"
-        f"trading assistant is ready.\n\n"
-        f"🔑 Login to get started!\n"
-        f"━━━━━━━━━━━━━━━━━━━━",
+        f"Tap the button below to open\n"
+        f"your professional trading panel!",
         parse_mode='HTML',
-        reply_markup=main_menu_keyboard()
+        reply_markup=kb
     )
 
 @bot.callback_query_handler(func=lambda c: True)
@@ -918,3 +922,72 @@ if __name__ == '__main__':
             logger.error(f"💥 Crash: {e}")
         logger.warning("🔄 Restarting in 30s...")
         time.sleep(30)
+
+# ── Web App Handler ────────────────────────────────────────────
+@bot.message_handler(content_types=['web_app_data'])
+def handle_webapp_data(message):
+    uid  = str(message.from_user.id)
+    user = get_user(uid)
+    data = message.web_app_data.data
+    logger.info(f"WebApp data from {uid}: {data}")
+
+    if data == 'start_autotrade':
+        bot.send_message(int(uid),
+            "🚀 <b>AUTO TRADE STARTED!</b>\n"
+            "Watching for signals...",
+            parse_mode='HTML'
+        )
+
+    elif data == 'stop_autotrade':
+        bot.send_message(int(uid), "🛑 <b>Auto Trade STOPPED!</b>", parse_mode='HTML')
+
+    elif data.startswith('login_email:'):
+        parts    = data.split(':')
+        email    = parts[1] if len(parts) > 1 else ''
+        password = parts[2] if len(parts) > 2 else ''
+        user['email']    = email
+        user['password'] = password
+        save_users(users)
+        bot.send_message(int(uid),
+            "⏳ <b>Logging in to Pocket Option...</b>",
+            parse_mode='HTML'
+        )
+
+    elif data.startswith('login_ssid:'):
+        ssid         = data.replace('login_ssid:', '')
+        user['ssid'] = ssid
+        save_users(users)
+        bot.send_message(int(uid),
+            "✅ <b>SSID Saved! Connecting...</b>",
+            parse_mode='HTML'
+        )
+
+    elif data.startswith('settings:'):
+        parts = data.split(':')
+        if len(parts) >= 7:
+            user['is_demo']    = parts[1] == 'True'
+            user['amount']     = float(parts[2])
+            user['mg_levels']  = int(parts[3])
+            user['mg_multi']   = float(parts[4])
+            user['expiry']     = int(parts[5])
+            user['daily_limit']= float(parts[6])
+            save_users(users)
+            bot.send_message(int(uid), "✅ <b>Settings saved!</b>", parse_mode='HTML')
+
+    elif data.startswith('trade:'):
+        parts     = data.split(':')
+        asset     = parts[1]
+        direction = parts[2]
+        amount    = float(parts[3])
+        expiry    = int(parts[4])
+        bot.send_message(int(uid),
+            f"⏳ <b>Placing Trade...</b>\n"
+            f"{'🟢 BUY' if direction=='call' else '🔴 SELL'} {asset}\n"
+            f"${amount} | {expiry}min",
+            parse_mode='HTML'
+        )
+
+    elif data == 'reset_stats':
+        user['stats'] = {'total':0,'wins':0,'losses':0,'profit':0.0}
+        save_users(users)
+        bot.send_message(int(uid), "✅ Stats reset!", parse_mode='HTML')
