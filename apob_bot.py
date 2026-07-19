@@ -4,6 +4,22 @@
 # ============================================================
 
 import os, json, logging, threading, time, re, asyncio
+import websockets
+
+# Import strategy engine and PO connection
+try:
+    from strategy_engine import StrategyRunner, PriceFeed, OTC_ASSETS
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.info("✅ Strategy engine loaded!")
+except ImportError as e:
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.error(f"❌ Strategy engine import error: {e}")
+
+try:
+    from po_login import auto_login_and_get_ssid
+except ImportError:
+    def auto_login_and_get_ssid():
+        return None
 from datetime import datetime, timezone, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import telebot
@@ -29,6 +45,179 @@ try:
 except: pass
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
+
+# ── Global PO State ────────────────────────────────────────────
+po_clients       = {}  # uid -> POClient
+strategy_runners = {}  # uid -> StrategyRunner
+price_feeds      = {}  # uid -> PriceFeed
+auto_trading     = {}  # uid -> bool
+
+# ── Simple POClient ────────────────────────────────────────────
+class POClient:
+    def __init__(self, ssid, is_demo=True):
+        self.ssid      = ssid
+        self.is_demo   = is_demo
+        self.ws        = None
+        self.connected = False
+        self.balance   = 0.0
+        self.orders    = {}
+        import uuid
+        self._uuid = uuid
+
+    async def connect(self):
+        import json as _json
+        headers = {
+            "Origin":     "https://pocketoption.com",
+            "User-Agent": "Mozilla/5.0"
+        }
+        urls = [
+            "wss://demo-api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+            "wss://try-demo-eu.po.market/socket.io/?EIO=4&transport=websocket",
+        ]
+        for url in urls:
+            try:
+                self.ws = await websockets.connect(
+                    url, extra_headers=headers,
+                    ping_interval=20, ping_timeout=10
+                )
+                await asyncio.wait_for(self.ws.recv(), timeout=10)
+                auth = _json.dumps(["auth", {
+                    "session": self.ssid,
+                    "isDemo":  1 if self.is_demo else 0,
+                    "uid":     0, "platform": 2
+                }])
+                await self.ws.send(f"42{auth}")
+                for _ in range(15):
+                    msg = await asyncio.wait_for(self.ws.recv(), timeout=10)
+                    if any(x in msg.lower() for x in ['balance','updatestream']):
+                        self.connected = True
+                        try:
+                            data = _json.loads(msg[2:])
+                            if isinstance(data, list) and len(data) > 1:
+                                p = data[1]
+                                if isinstance(p, dict) and 'balance' in p:
+                                    self.balance = float(p['balance'])
+                        except: pass
+                        asyncio.create_task(self._listen())
+                        return True
+                    if msg == '2':
+                        await self.ws.send('3')
+                self.connected = True
+                asyncio.create_task(self._listen())
+                return True
+            except Exception as e:
+                logger.warning(f"PO connect failed: {e}")
+                continue
+        return False
+
+    async def _listen(self):
+        import json as _json
+        try:
+            async for msg in self.ws:
+                try:
+                    if msg == '2':
+                        await self.ws.send('3')
+                    elif msg.startswith('42'):
+                        data = _json.loads(msg[2:])
+                        if isinstance(data, list) and len(data) > 1:
+                            event   = data[0]
+                            payload = data[1]
+                            if event in ['updateStream','balance'] and isinstance(payload, dict):
+                                if 'balance' in payload:
+                                    self.balance = float(payload['balance'])
+                            elif event in ['successcloseOrder','closeOrder']:
+                                oid    = str(payload.get('id') or payload.get('order_id',''))
+                                profit = float(payload.get('profit', 0) or 0)
+                                if oid:
+                                    self.orders[oid] = {'status':'closed','profit':profit}
+                            elif event == 'successopenOrder':
+                                oid = str(payload.get('id') or payload.get('order_id',''))
+                                if oid:
+                                    self.orders[oid] = {'status':'open'}
+                except: pass
+        except:
+            self.connected = False
+
+    async def get_balance(self):
+        try:
+            await self.ws.send('42["getBalance",{}]')
+            await asyncio.sleep(2)
+        except: pass
+        return self.balance
+
+    async def place_order(self, asset, amount, direction, duration):
+        import json as _json
+        if not self.connected or not self.ws:
+            return None
+        try:
+            oid = str(self._uuid.uuid4())
+            msg = _json.dumps(["openOrder", {
+                "asset": asset, "amount": amount,
+                "action": direction, "isDemo": 1 if self.is_demo else 0,
+                "requestId": oid, "optionType": 100, "time": duration
+            }])
+            await self.ws.send(f"42{msg}")
+            await asyncio.sleep(3)
+            return type('Order', (), {'order_id': oid})()
+        except Exception as e:
+            logger.error(f"Place order error: {e}")
+            return None
+
+    async def get_order_result(self, order_id, timeout=60):
+        start = time.time()
+        while time.time() - start < timeout:
+            order = self.orders.get(str(order_id))
+            if order and order.get('status') == 'closed':
+                profit = order.get('profit', 0)
+                return type('Result', (), {'profit': profit})()
+            await asyncio.sleep(1)
+        return type('Result', (), {'profit': 0})()
+
+def connect_po_user(uid):
+    uid  = str(uid)
+    user = get_user(uid)
+    ssid = user.get('ssid', '')
+    email    = user.get('email', '')
+    password = user.get('password', '')
+
+    def do_connect():
+        loop = asyncio.new_event_loop()
+        async def run():
+            global po_clients
+            # Try auto login if no SSID
+            actual_ssid = ssid
+            if not actual_ssid and email and password:
+                bot.send_message(int(uid), "🔐 Auto logging in...")
+                actual_ssid = auto_login_and_get_ssid()
+                if actual_ssid:
+                    user['ssid'] = actual_ssid
+                    save_users(users)
+            if not actual_ssid:
+                bot.send_message(int(uid), "❌ No SSID! Login first.")
+                return
+            client = POClient(actual_ssid, is_demo=user.get('is_demo', True))
+            result = await client.connect()
+            if result:
+                po_clients[uid] = client
+                await asyncio.sleep(3)
+                bal  = await client.get_balance()
+                mode = "🔵 DEMO" if user.get('is_demo', True) else "🔴 REAL"
+                user['connected'] = True
+                save_users(users)
+                bot.send_message(
+                    int(uid),
+                    f"✅ <b>Pocket Option Connected!</b>\n"
+                    f"Mode: {mode}\n"
+                    f"Balance: ${bal:.2f}\n\n"
+                    f"You can now start Auto Trade! 🚀",
+                    parse_mode='HTML'
+                )
+            else:
+                bot.send_message(int(uid), "❌ PO Connection failed! Check your SSID.")
+        loop.run_until_complete(run())
+        loop.close()
+
+    threading.Thread(target=do_connect, daemon=True).start()
 
 # ── User Storage ───────────────────────────────────────────────
 USERS_FILE = 'apob_users.json'
@@ -932,13 +1121,36 @@ def handle_webapp_data(message):
     logger.info(f"WebApp data from {uid}: {data}")
 
     if data == 'start_autotrade':
+        if uid not in po_clients:
+            bot.send_message(int(uid),
+                "❌ Not connected!\nLogin first using the Login tab.",
+                parse_mode='HTML'
+            )
+            return
+        auto_trading[uid] = True
+        # Start strategy runner
+        runner = StrategyRunner(po_clients[uid], bot, int(uid), get_user(uid))
+        runner.start()
+        strategy_runners[uid] = runner
+        user = get_user(uid)
         bot.send_message(int(uid),
-            "🚀 <b>AUTO TRADE STARTED!</b>\n"
-            "Watching for signals...",
+            f"🚀 <b>AUTO TRADE STARTED!</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ Strategy: Double SMA + Fractal\n"
+            f"✅ Expiry: 5 seconds\n"
+            f"✅ OTC pairs only\n"
+            f"💵 Amount: ${user.get('amount',1.0)}\n"
+            f"📈 Martingale: {user.get('mg_levels',2)} levels\n"
+            f"🛑 Daily Limit: ${user.get('daily_limit',20.0)}\n"
+            f"━━━━━━━━━━━━━━━━━━",
             parse_mode='HTML'
         )
 
     elif data == 'stop_autotrade':
+        auto_trading[uid] = False
+        if uid in strategy_runners:
+            strategy_runners[uid].stop()
+            del strategy_runners[uid]
         bot.send_message(int(uid), "🛑 <b>Auto Trade STOPPED!</b>", parse_mode='HTML')
 
     elif data.startswith('login_email:'):
@@ -952,6 +1164,7 @@ def handle_webapp_data(message):
             "⏳ <b>Logging in to Pocket Option...</b>",
             parse_mode='HTML'
         )
+        connect_po_user(uid)
 
     elif data.startswith('login_ssid:'):
         ssid         = data.replace('login_ssid:', '')
@@ -961,6 +1174,7 @@ def handle_webapp_data(message):
             "✅ <b>SSID Saved! Connecting...</b>",
             parse_mode='HTML'
         )
+        connect_po_user(uid)
 
     elif data.startswith('settings:'):
         parts = data.split(':')
@@ -980,12 +1194,33 @@ def handle_webapp_data(message):
         direction = parts[2]
         amount    = float(parts[3])
         expiry    = int(parts[4])
+        if uid not in po_clients:
+            bot.send_message(int(uid), "❌ Not connected! Login first.")
+            return
         bot.send_message(int(uid),
             f"⏳ <b>Placing Trade...</b>\n"
             f"{'🟢 BUY' if direction=='call' else '🔴 SELL'} {asset}\n"
-            f"${amount} | {expiry}min",
+            f"${amount} | {expiry}s",
             parse_mode='HTML'
         )
+        def run_trade():
+            loop = asyncio.new_event_loop()
+            async def do():
+                client = po_clients[uid]
+                order  = await client.place_order(asset, amount, direction, expiry)
+                if not order:
+                    bot.send_message(int(uid), "❌ Trade failed!")
+                    return
+                bot.send_message(int(uid), f"✅ Trade placed! Waiting {expiry}s...")
+                await asyncio.sleep(expiry + 2)
+                result = await client.get_order_result(order.order_id, 30)
+                if result and result.profit > 0:
+                    bot.send_message(int(uid), f"🎉 <b>WIN!</b> +${result.profit:.2f}", parse_mode='HTML')
+                else:
+                    bot.send_message(int(uid), f"❌ <b>LOSS</b> -${amount:.2f}", parse_mode='HTML')
+            loop.run_until_complete(do())
+            loop.close()
+        threading.Thread(target=run_trade, daemon=True).start()
 
     elif data == 'reset_stats':
         user['stats'] = {'total':0,'wins':0,'losses':0,'profit':0.0}
